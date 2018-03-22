@@ -1,0 +1,198 @@
+import Std.Foreign.C.Value
+import Std.Foreign
+import Lumeric.BLAS
+import Lumeric.LAPACK
+
+
+class Matrix:
+    Matrix
+    MatrixVal Int Int (ManagedPointer CDouble)
+
+    def nrows: case self of
+        MatrixVal nrows _ _: nrows
+
+    def ncols: case self of
+        MatrixVal _ ncols _: ncols
+
+    def data: case self of
+        MatrixVal _ _ data: data
+
+    def + that:
+        sameDim = (self.nrows, self.ncols) == (that.nrows, that.ncols)
+        case sameDim of
+            False: throw "Matrix.+: different dimensions"
+            True:
+                res = Matrix.new self.nrows self.ncols
+                dcopy (self.nrows * self.ncols) that.data.ptr 1 res.data.ptr 1
+                daxpy (self.nrows * self.ncols) 1.0 self.data.ptr 1 res.data.ptr 1
+                res
+
+    def * that:
+        correctDim = self.ncols == that.nrows
+        case correctDim of
+            False: throw "Matrix.*: invalid dimensions"
+            True:
+                res = Matrix.new self.nrows that.ncols
+                dgemm CblasRowMajor CblasNoTrans CblasNoTrans self.nrows that.ncols self.ncols 1.0 self.data self.nrows that.data that.nrows 0.0 res.data self.nrows
+                res
+
+    def scale s:
+        res = Matrix.new self.nrows self.ncols
+        dcopy (self.nrows * self.ncols) self.data.ptr 1 res.data.ptr 1
+        dscal (self.nrows * self.ncols) s res.data.ptr 1
+        res
+
+    def norm:
+        case (self.nrows, self.ncols) of
+            (1, _): dnrm2 self.ncols self.data.ptr 1
+            (_, 1): dnrm2 self.nrows self.data.ptr 1
+            _: throw "Matrix.norm: non-vector"
+
+    def dot vec:
+        case (self.nrows, self.ncols) of
+            (1, _): ddot self.ncols self.data.ptr 1 vec.data.ptr 1
+            (_, 1): ddot self.nrows self.data.ptr 1 vec.data.ptr 1
+            _: throw "Matrix.dot: non-vector"
+
+    def toJSON:
+        (0.upto self.nrows-1).map (row: (0.upto self.ncols-1).map (col: self . data . moveElems (row*self.ncols + col) . read . toReal)) . toJSON
+
+    def new nrows ncols:
+        elems = nrows * ncols
+        mptr  = ManagedPointer CDouble . mallocElems elems
+        MatrixVal nrows ncols mptr
+
+    def _initializer val nrows ncols:
+        m = Matrix.new nrows ncols
+        0 . upto (nrows * ncols - 1) . each (ind: m . data . moveElems ind . write val)
+        m
+
+    def zeros nrows ncols:
+        Matrix._initializer (CDouble.fromReal 0.0) nrows ncols
+
+    def ones nrows ncols:
+        Matrix._initializer (CDouble.fromReal 1.0) nrows ncols
+
+    def rand nrows ncols:
+        Matrix._initializer (CDouble.fromReal randomReal) nrows ncols
+
+    def eye nrows ncols:
+        z = Matrix.zeros nrows ncols
+        0 . upto (min nrows ncols - 1) . each (ind: z._set (ind, ind) (CDouble.fromReal 1.0))
+        z
+
+    def _set coords val:
+        (row, col) = coords
+        ptr = self.data.moveElems (row*self.ncols + col)
+        ptr.write val
+
+    def thaw:
+        m = MutableMatrix.new self.nrows self.ncols
+        dcopy (self.nrows * self.ncols) self.data.ptr 1 m.data.ptr 1
+        m
+
+    def fromList nrows ncols vals:
+        elems = nrows * ncols
+        correctSize = elems == vals.length
+        case correctSize of
+            False: throw "Matrix.fromList: number of values do not match size"
+            True:
+                m = Matrix.new nrows ncols
+                vals . zip (0.upto (elems-1)) . each (a: case a of (val, ind): m . data . moveElems ind . write val)
+                m
+
+class MutableMatrix:
+    MutableMatrix
+    MutableMatrixVal Int Int (ManagedPointer CDouble)
+
+    def nrows: case self of
+        MutableMatrixVal nrows _ _: nrows
+
+    def ncols: case self of
+        MutableMatrixVal _ ncols _: ncols
+
+    def data: case self of
+        MutableMatrixVal _ _ data: data
+
+    def + that:
+        sameDim = (self.nrows, self.ncols) == (that.nrows, that.ncols)
+        case sameDim of
+            False: throw "MutableMatrix.+: different dimensions"
+            True:
+                daxpy (self.nrows * self.ncols) 1.0 that.data.ptr 1 self.data.ptr 1
+                self
+
+    def * that:
+        correctDim = self.ncols == that.nrows
+        case correctDim of
+            False: throw "MutableMatrix.*: invalid dimensions"
+            True:
+                res = MutableMatrix.new self.nrows that.ncols
+                dgemm CblasRowMajor CblasNoTrans CblasNoTrans self.nrows that.ncols self.ncols 1.0 self.data self.nrows that.data that.nrows 0.0 res.data self.nrows
+                res
+
+    def inverse:
+        ipiv = MutableMatrix.new self.nrows 1
+        trf = dgetrf LAPACKRowMajor self.nrows self.ncols self.data.ptr self.ncols ipiv.data.ptr . toInt
+        when (trf==0 . not) (throw "MutableMatrix.inverse: dgetrf failed")
+        tri = dgetri LAPACKRowMajor self.nrows self.data.ptr self.ncols ipiv.data.ptr . toInt
+        when (tri==0 . not) (throw "MutableMatrix.inverse: dgetri failed")
+        self
+
+    def svd:
+        m = min self.nrows self.ncols
+        s = MutableMatrix.new 1 m
+        u = MutableMatrix.new self.nrows m
+        vt = MutableMatrix.new m self.ncols
+        sdd = dgesdd LAPACKRowMajor 83 self.nrows self.ncols self.data.ptr self.nrows s.data.ptr u.data.ptr self.nrows vt.data.ptr m . toInt
+        when (sdd==0 . not) (throw "MutableMatrix.svd: dgesdd failed")
+        (s, u, vt)
+
+    def new nrows ncols:
+        elems = nrows * ncols
+        mptr  = ManagedPointer CDouble . mallocElems elems
+        MutableMatrixVal nrows ncols mptr
+
+    def toJSON:
+        (0.upto self.nrows-1).map (row: (0.upto self.ncols-1).map (col: self . data . moveElems (row*self.ncols + col) . read . toReal)) . toJSON
+
+    def scale s:
+        dscal (self.nrows * self.ncols) s self.data.ptr 1
+        self
+
+    def eye nrows ncols:
+        z = MutableMatrix.zeros nrows ncols
+        0 . upto (min nrows ncols - 1) . each (ind: z.set (ind, ind) (CDouble.fromReal 1.0))
+        z
+
+    def _initializer val nrows ncols:
+        m = MutableMatrix.new nrows ncols
+        0 . upto (nrows * ncols - 1) . each (ind: m . data . moveElems ind . write val)
+        m
+
+    def zeros nrows ncols:
+        MutableMatrix._initializer (CDouble.fromReal 0.0) nrows ncols
+
+    def freeze:
+        m = Matrix.new self.nrows self.ncols
+        dcopy (self.nrows * self.ncols) self.data.ptr 1 m.data.ptr 1
+        m
+
+    def set coords val:
+        (row, col) = coords
+        ptr = self.data.moveElems (row*self.ncols + col)
+        ptr.write val
+
+    def fromList nrows ncols vals:
+        elems = nrows * ncols
+        correctSize = elems == vals.length
+        case correctSize of
+            False: throw "MutableMatrix.fromList: number of values do not match size"
+            True:
+                m = MutableMatrix.new nrows ncols
+                cvals = vals . map (a: CDouble.fromReal a.toReal)
+                cvals . zip (0.upto (elems-1)) . each (a: case a of (val, ind): m . data . moveElems ind . write val)
+                m
+
+def min a b:
+    if a < b then a else b

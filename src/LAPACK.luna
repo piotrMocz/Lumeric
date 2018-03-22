@@ -1,0 +1,25 @@
+import Std.Foreign
+import Std.Foreign.C.Value
+
+def lapackImpl: "lapacke"
+
+class LAPACKLayout:
+	LAPACKRowMajor
+	LAPACKColMajor
+
+	def toCArg: case self of
+		LAPACKRowMajor: CInt.fromInt 101 . toCArg
+		LAPACKColMajor: CInt.fromInt 102 . toCArg
+
+
+def dgetrf layout m n a lda ipiv:
+	f = lookupSymbol lapackImpl "LAPACKE_dgetrf"
+	f.call CInt [layout . toCArg, CInt.fromInt m . toCArg, CInt.fromInt n . toCArg, a . toCArg, CInt.fromInt lda . toCArg, ipiv . toCArg]
+
+def dgetri layout n a lda ipiv:
+	f = lookupSymbol lapackImpl "LAPACKE_dgetri"
+	f.call CInt [layout . toCArg, CInt.fromInt n . toCArg, a . toCArg, CInt.fromInt lda . toCArg, ipiv . toCArg]
+
+def dgesdd layout jobz m n a lda s u ldu vt ldvt:
+	f = lookupSymbol lapackImpl "LAPACKE_dgesdd"
+	f.call CInt [layout . toCArg, CChar.fromInt jobz . toCArg, CInt.fromInt m . toCArg, CInt.fromInt n . toCArg, a . toCArg, CInt.fromInt lda . toCArg, s . toCArg, u . toCArg, CInt.fromInt ldu . toCArg, vt . toCArg, CInt.fromInt ldvt . toCArg]

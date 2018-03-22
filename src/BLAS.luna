@@ -1,0 +1,91 @@
+import Std.Foreign
+import Std.Foreign.C.Value
+
+def blasImpl: "openblas"
+
+class CBLASOrder:
+    CblasRowMajor
+    CblasColMajor
+
+    def toCArg: case self of
+        CblasRowMajor: 101.toCArg
+        CblasColMajor: 102.toCArg
+
+class CBLASTranspose:
+    CblasNoTrans
+    CblasTrans
+    CblasConjTrans
+    CblasConjNoTrans
+
+    def toCArg: case self of
+        CblasNoTrans: 111.toCArg
+        CblasTrans: 112.toCArg
+        CblasConjTrans: 113.toCArg
+        CblasConjNoTrans: 114.toCArg
+
+class CBLASUpLo:
+    CblasUpper
+    CblasLower
+
+    def toCArg: case self of
+        CblasUpper: 121.toCArg
+        CblasLower: 122.toCArg
+
+class CBLASDiag:
+    CblasNonUnit
+    CblasUnit
+
+    def toCArg: case self of
+        CblasNonUnit: 131.toCArg
+        CblasUnit: 132.toCArg
+
+class CBLASSide:
+    CblasLeft
+    CblasRight
+
+    def toCArg: case self of
+        CblasLeft: 141.toCArg
+        CblasRight: 142.toCArg
+
+def drotg a b:
+    f = lookupSymbol blasImpl "cblas_drotg"
+    ap = Pointer CDouble . malloc
+    ap.write a
+    bp = Pointer CDouble . malloc
+    bp.write b
+    cp = Pointer CDouble . malloc
+    sp = Pointer CDouble . malloc
+    f.call None [ap.toCArg, bp.toCArg, cp.toCArg, sp.toCArg]
+    r = ap.read
+    z = bp.read
+    c = cp.read
+    s = sp.read
+    ap.free ap
+    bp.free bp
+    cp.free cp
+    sp.free sp
+    (r,z,c,s)
+
+def ddot n x incx y incy:
+    f = lookupSymbol blasImpl "cblas_ddot"
+    f.call CDouble [CInt.fromInt n . toCArg, x.toCArg, CInt.fromInt incx . toCArg, y.toCArg, CInt.fromInt incy . toCArg]
+
+def dnrm2 n x incx:
+    f = lookupSymbol blasImpl "cblas_dnrm2"
+    f.call CDouble [CInt.fromInt n . toCArg, x.toCArg, incx.toCArg]
+
+def dscal n alpha x incx:
+    f = lookupSymbol blasImpl "cblas_dscal"
+    f.call None [CInt.fromInt n . toCArg, CDouble.fromReal alpha . toCArg, x.toCArg, CInt.fromInt incx . toCArg]
+
+def daxpy n alpha x incx y incy:
+    f = lookupSymbol blasImpl "cblas_daxpy"
+    f.call None [CInt.fromInt n . toCArg, CDouble.fromReal alpha . toCArg, x.toCArg, CInt.fromInt incx . toCArg, y.toCArg, CInt.fromInt incy . toCArg]
+
+def dcopy n x incx y incy:
+    f = lookupSymbol blasImpl "cblas_dcopy"
+    f.call None [CInt.fromInt n . toCArg, x.toCArg, CInt.fromInt incx . toCArg, y.toCArg, CInt.fromInt incy . toCArg]
+
+def dgemm layout transA transB m n k alpha a lda b ldb beta c ldc:
+    f = lookupSymbol blasImpl "cblas_dgemm"
+    f.call None [CInt.fromInt layout . toCArg, CInt.fromInt transA . toCArg, CInt.fromInt transB . toCArg, CInt.ftomInt m . toCArg, CInt.fromInt n . toCArg, CInt.fromInt k . toCArg, CDouble.fromReal alpha . toCArg, a.toCArg, CInt.fromInt lda . toCArg, b.toCArg, CInt.fromInt ldb . toCArg, CDouble.fromReal beta . toCArg, c.toCArg, CInt.fromInt ldc . toCArg]
