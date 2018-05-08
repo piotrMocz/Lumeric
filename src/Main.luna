@@ -3,11 +3,8 @@ import Lumeric.BLAS
 import Std.Foreign.C.Value
 
 
-def main:
-    (s, u, vt) = MutableMatrix.fromList 3 3 [10, -9, -12, 7, -12, 11, -10, 10, 3] . svd
-    print s.toJSON
-    print u.toJSON
-    print vt.toJSON
-    m = Matrix.eye 5 5 . scale 10.0
-    print m.toJSON
+«0»def main:
+    «5»m = Matrix.eye 5 5 . scale 10.0
     None
+
+### META {"metas":[{"marker":5,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":240}}}}]}

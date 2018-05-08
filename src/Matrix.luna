@@ -17,6 +17,20 @@ class Matrix:
     def data: case self of
         MatrixVal _ _ data: data
 
+    def resize nrows ncols: case self of
+        MatrixVal nrs ncls d: case nrs*ncls == nrows*ncols of
+            True: MatrixVal nrows ncols d
+            False: throw "Matrix.resize: wrong number of elements"
+
+    def transpose:
+        m = Matrix.new self.ncols self.nrows
+        0 . upto self.ncols.pred . each col:
+            0 . upto self.nrows.pred . each row:
+                m._set (col, row) (CDouble.fromReal (self.at row col))
+                None
+            None
+        m
+
     def + that:
         sameDim = (self.nrows, self.ncols) == (that.nrows, that.ncols)
         case sameDim of
@@ -33,7 +47,7 @@ class Matrix:
             False: throw "Matrix.*: invalid dimensions"
             True:
                 res = Matrix.new self.nrows that.ncols
-                dgemm CblasRowMajor CblasNoTrans CblasNoTrans self.nrows that.ncols self.ncols 1.0 self.data self.nrows that.data that.nrows 0.0 res.data self.nrows
+                dgemm CblasRowMajor CblasNoTrans CblasNoTrans self.nrows that.ncols self.ncols 1.0 self.data self.ncols that.data that.ncols 0.0 res.data that.ncols
                 res
 
     def scale s:
@@ -48,14 +62,32 @@ class Matrix:
             (_, 1): dnrm2 self.nrows self.data.ptr 1
             _: throw "Matrix.norm: non-vector"
 
+    def columnNorms:
+        ncols = self.ncols
+        nrows = self.nrows
+        size = ncols * nrows
+        0.upto self.ncols.pred . each col:
+            dnrm2 size (self.data.moveElems col) ncols . toReal
+
     def dot vec:
         case (self.nrows, self.ncols) of
             (1, _): ddot self.ncols self.data.ptr 1 vec.data.ptr 1
             (_, 1): ddot self.nrows self.data.ptr 1 vec.data.ptr 1
             _: throw "Matrix.dot: non-vector"
 
+    def at row col:
+        self.data.moveElems (row * self.ncols + col) . read . toReal
+
+    def shortRep: "Matrix<" + self.nrows + ", " + self.ncols + ">"
+
+    def toText:
+        rows = 0 . upto self.nrows.pred . each r:
+            vals = 0 . upto self.ncols.pred . each (self.at r)
+            vals.makeText '\t'
+        rows.makeText '\n'
+
     def toJSON:
-        (0.upto self.nrows-1).map (row: (0.upto self.ncols-1).map (col: self . data . moveElems (row*self.ncols + col) . read . toReal)) . toJSON
+        (0.upto self.nrows-1).map (row: (0.upto self.ncols-1).map (col: self.at row col)) . toJSON
 
     def new nrows ncols:
         elems = nrows * ncols
@@ -90,6 +122,15 @@ class Matrix:
         m = MutableMatrix.new self.nrows self.ncols
         dcopy (self.nrows * self.ncols) self.data.ptr 1 m.data.ptr 1
         m
+
+    def fromArray rows cols arr:
+        size = rows * cols
+        case size > arr.size of
+            True: throw "Matrix.fromArray: Array too small"
+            False:
+                ptr = ManagedPointer CDouble . mallocElems size
+                dcopy size arr.ptr 1 ptr.ptr 1
+                MatrixVal rows cols ptr
 
     def fromList nrows ncols vals:
         elems = nrows * ncols
@@ -181,7 +222,7 @@ class MutableMatrix:
     def set coords val:
         (row, col) = coords
         ptr = self.data.moveElems (row*self.ncols + col)
-        ptr.write val
+        ptr.write (CDouble.fromReal val.toReal)
 
     def fromList nrows ncols vals:
         elems = nrows * ncols
@@ -194,5 +235,7 @@ class MutableMatrix:
                 cvals . zip (0.upto (elems-1)) . each (a: case a of (val, ind): m . data . moveElems ind . write val)
                 m
 
-def min a b:
-    if a < b then a else b
+«0»def min a b:
+    «1»if a < b then a else b
+
+### META {"metas":[{"marker":1,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":0}}}}]}

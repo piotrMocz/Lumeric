@@ -8,8 +8,8 @@ class CBLASOrder:
     CblasColMajor
 
     def toCArg: case self of
-        CblasRowMajor: 101.toCArg
-        CblasColMajor: 102.toCArg
+        CblasRowMajor: CInt.fromInt 101 . toCArg
+        CblasColMajor: CInt.fromInt 102 . toCArg
 
 class CBLASTranspose:
     CblasNoTrans
@@ -17,35 +17,39 @@ class CBLASTranspose:
     CblasConjTrans
     CblasConjNoTrans
 
+    def transpose: case self of
+        CblasNoTrans: CblasTrans
+        CblasTrans: CblasNoTrans
+
     def toCArg: case self of
-        CblasNoTrans: 111.toCArg
-        CblasTrans: 112.toCArg
-        CblasConjTrans: 113.toCArg
-        CblasConjNoTrans: 114.toCArg
+        CblasNoTrans:     CInt . fromInt 111 . toCArg
+        CblasTrans:       CInt . fromInt 112 . toCArg
+        CblasConjTrans:   CInt . fromInt 113 . toCArg
+        CblasConjNoTrans: CInt . fromInt 114 . toCArg
 
 class CBLASUpLo:
     CblasUpper
     CblasLower
 
     def toCArg: case self of
-        CblasUpper: 121.toCArg
-        CblasLower: 122.toCArg
+        CblasUpper: CInt . fromInt 121 . toCArg
+        CblasLower: CInt . fromInt 122 . toCArg
 
 class CBLASDiag:
     CblasNonUnit
     CblasUnit
 
     def toCArg: case self of
-        CblasNonUnit: 131.toCArg
-        CblasUnit: 132.toCArg
+        CblasNonUnit: CInt . fromInt 131 . toCArg
+        CblasUnit:    CInt . fromInt 132 . toCArg
 
 class CBLASSide:
     CblasLeft
     CblasRight
 
     def toCArg: case self of
-        CblasLeft: 141.toCArg
-        CblasRight: 142.toCArg
+        CblasLeft:  CInt.fromInt 141 . toCArg
+        CblasRight: CInt.fromInt 142 . toCArg
 
 def drotg a b:
     f = lookupSymbol blasImpl "cblas_drotg"
@@ -72,7 +76,7 @@ def ddot n x incx y incy:
 
 def dnrm2 n x incx:
     f = lookupSymbol blasImpl "cblas_dnrm2"
-    f.call CDouble [CInt.fromInt n . toCArg, x.toCArg, incx.toCArg]
+    f.call CDouble [CInt.fromInt n . toCArg, x.toCArg, CInt.fromInt incx . toCArg]
 
 def dscal n alpha x incx:
     f = lookupSymbol blasImpl "cblas_dscal"
@@ -88,4 +92,4 @@ def dcopy n x incx y incy:
 
 def dgemm layout transA transB m n k alpha a lda b ldb beta c ldc:
     f = lookupSymbol blasImpl "cblas_dgemm"
-    f.call None [CInt.fromInt layout . toCArg, CInt.fromInt transA . toCArg, CInt.fromInt transB . toCArg, CInt.ftomInt m . toCArg, CInt.fromInt n . toCArg, CInt.fromInt k . toCArg, CDouble.fromReal alpha . toCArg, a.toCArg, CInt.fromInt lda . toCArg, b.toCArg, CInt.fromInt ldb . toCArg, CDouble.fromReal beta . toCArg, c.toCArg, CInt.fromInt ldc . toCArg]
+    f.call None [layout . toCArg, transA . toCArg, transB . toCArg, CInt.fromInt m . toCArg, CInt.fromInt n . toCArg, CInt.fromInt k . toCArg, CDouble.fromReal alpha . toCArg, a.toCArg, CInt.fromInt lda . toCArg, b.toCArg, CInt.fromInt ldb . toCArg, CDouble.fromReal beta . toCArg, c.toCArg, CInt.fromInt ldc . toCArg]
