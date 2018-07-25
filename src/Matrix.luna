@@ -26,7 +26,7 @@ class Matrix:
         m = Matrix.new self.ncols self.nrows
         0 . upto self.ncols.pred . each col:
             0 . upto self.nrows.pred . each row:
-                m._set (col, row) (CDouble.fromReal (self.at row col))
+                m.set (col, row) (CDouble.fromReal (self.at row col))
                 None
             None
         m
@@ -78,7 +78,7 @@ class Matrix:
     def at row col:
         self.data.moveElems (row * self.ncols + col) . read . toReal
 
-    def shortRep: "Matrix<" + self.nrows + ", " + self.ncols + ">"
+    def shortRep: "Matrix<" + self.nrows.toText + ", " + self.ncols.toText + ">"
 
     def toText:
         rows = 0 . upto self.nrows.pred . each r:
@@ -94,26 +94,26 @@ class Matrix:
         mptr  = ManagedPointer CDouble . mallocElems elems
         MatrixVal nrows ncols mptr
 
-    def _initializer val nrows ncols:
+    def initializer val nrows ncols:
         m = Matrix.new nrows ncols
         0 . upto (nrows * ncols - 1) . each (ind: m . data . moveElems ind . write val)
         m
 
     def zeros nrows ncols:
-        Matrix._initializer (CDouble.fromReal 0.0) nrows ncols
+        Matrix.initializer (CDouble.fromReal 0.0) nrows ncols
 
     def ones nrows ncols:
-        Matrix._initializer (CDouble.fromReal 1.0) nrows ncols
+        Matrix.initializer (CDouble.fromReal 1.0) nrows ncols
 
     def rand nrows ncols:
-        Matrix._initializer (CDouble.fromReal randomReal) nrows ncols
+        Matrix.initializer (CDouble.fromReal randomReal) nrows ncols
 
     def eye nrows ncols:
         z = Matrix.zeros nrows ncols
-        0 . upto (min nrows ncols - 1) . each (ind: z._set (ind, ind) (CDouble.fromReal 1.0))
+        0 . upto (min nrows ncols - 1) . each (ind: z.set (ind, ind) (CDouble.fromReal 1.0))
         z
 
-    def _set coords val:
+    def set coords val:
         (row, col) = coords
         ptr = self.data.moveElems (row*self.ncols + col)
         ptr.write val
@@ -206,13 +206,13 @@ class MutableMatrix:
         0 . upto (min nrows ncols - 1) . each (ind: z.set (ind, ind) (CDouble.fromReal 1.0))
         z
 
-    def _initializer val nrows ncols:
+    def initializer val nrows ncols:
         m = MutableMatrix.new nrows ncols
         0 . upto (nrows * ncols - 1) . each (ind: m . data . moveElems ind . write val)
         m
 
     def zeros nrows ncols:
-        MutableMatrix._initializer (CDouble.fromReal 0.0) nrows ncols
+        MutableMatrix.initializer (CDouble.fromReal 0.0) nrows ncols
 
     def freeze:
         m = Matrix.new self.nrows self.ncols
